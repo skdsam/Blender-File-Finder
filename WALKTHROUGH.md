@@ -12,9 +12,7 @@
     - Updated `makeRow` to render icons as HTML.
     - Replaced the "🧊" emoji with the downloaded Blender icon (`assets/blender_icon.png`).
 
-### 3. Added Assets
-- **`src/assets/blender_icon.png`**: Downloaded the Blender logo for use as the file icon.
-
-## Verification Results
-- **Automated Tests**: `cargo check` passed.
-- **Manual Verification**: The app should now run (`npm run tauri dev`) and display the Blender logo next to .blend files in the tree and search results.
+### 4. GitHub Repository
+- **Initialized Git Repository:** Successfully installed Git via `winget` and initialized the project.
+- **Pushed to Remote:** All project files (excluding build assets and dependencies) have been pushed to [https://github.com/skdsam/Blender-File-Finder](https://github.com/skdsam/Blender-File-Finder).
+- **Included Docs:** `WALKTHROUGH.md` and `TESTING.md` are included in the repository root.
