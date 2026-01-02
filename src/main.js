@@ -179,12 +179,6 @@ function renderInfo(node) {
     console.log(`Thumbnail found for ${node.name}: ${b.thumb_width}x${b.thumb_height}`);
     thumbContainer.style.display = "flex";
     thumbContainer.innerHTML = "";
-    const canvas = document.createElement("canvas");
-    canvas.width = b.thumb_width || 128;
-    canvas.height = b.thumb_height || 128;
-    const ctx = canvas.getContext("2d");
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
-
     // Decode base64 to bytes
     const binaryString = atob(b.thumbnail);
     const bytes = new Uint8ClampedArray(binaryString.length);
@@ -192,8 +186,40 @@ function renderInfo(node) {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
+    const thumbW = b.thumb_width || 128;
+    const thumbH = b.thumb_height || 128;
+
+    // 1. Create offscreen canvas for source data
+    const offscreen = document.createElement("canvas");
+    offscreen.width = thumbW;
+    offscreen.height = thumbH;
+    const offCtx = offscreen.getContext("2d");
+    const imageData = offCtx.createImageData(thumbW, thumbH);
     imageData.data.set(bytes);
-    ctx.putImageData(imageData, 0, 0);
+    offCtx.putImageData(imageData, 0, 0);
+
+    // 2. Setup main canvas with High DPI support
+    const canvas = document.createElement("canvas");
+    const dpr = window.devicePixelRatio || 1;
+
+    // Use native resolution for display size
+    const displayW = thumbW;
+    const displayH = thumbH;
+
+    canvas.width = displayW * dpr;
+    canvas.height = displayH * dpr;
+    canvas.style.width = `${displayW}px`;
+    canvas.style.height = `${displayH}px`;
+
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
+    ctx.msImageSmoothingEnabled = false;
+
+    // Draw offscreen to main
+    ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+
     thumbContainer.appendChild(canvas);
   } else {
     thumbContainer.style.display = "none";

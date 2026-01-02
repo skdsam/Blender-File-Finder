@@ -544,8 +544,7 @@ body {
 
 .thumbContainer {
   width: 100%;
-  aspect-ratio: 1 / 1;
-  background: #000;
+  min-height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
