@@ -23,6 +23,8 @@ const treeEl = $("tree");
 const resultsEl = $("results");
 const resultsCount = $("resultsCount");
 const infoEl = $("info");
+const infoContent = $("infoContent");
+const thumbContainer = $("thumbContainer");
 const searchEl = $("search");
 
 const btnPick = $("btnPick");
@@ -155,10 +157,12 @@ function makeRow({
 }
 
 function renderInfo(node) {
-  if (!infoEl) return;
+  if (!infoContent || !thumbContainer) return;
 
   if (!node) {
-    infoEl.innerHTML = `<div class="hint">Select a .blend file from the tree or search results to view details.</div>`;
+    infoContent.innerHTML = `<div class="hint">Select a .blend file from the tree or search results to view details.</div>`;
+    thumbContainer.innerHTML = "";
+    thumbContainer.style.display = "none";
     setActionButtons();
     return;
   }
@@ -170,7 +174,33 @@ function renderInfo(node) {
     `Unknown (${b.error})` :
     "Unknown";
 
-  infoEl.innerHTML = `
+  // Thumbnail rendering
+  if (b?.thumbnail) {
+    console.log(`Thumbnail found for ${node.name}: ${b.thumb_width}x${b.thumb_height}`);
+    thumbContainer.style.display = "flex";
+    thumbContainer.innerHTML = "";
+    const canvas = document.createElement("canvas");
+    canvas.width = b.thumb_width || 128;
+    canvas.height = b.thumb_height || 128;
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+
+    // Decode base64 to bytes
+    const binaryString = atob(b.thumbnail);
+    const bytes = new Uint8ClampedArray(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    imageData.data.set(bytes);
+    ctx.putImageData(imageData, 0, 0);
+    thumbContainer.appendChild(canvas);
+  } else {
+    thumbContainer.style.display = "none";
+    thumbContainer.innerHTML = "";
+  }
+
+  infoContent.innerHTML = `
     <div class="kv">
       <div class="k">File Name</div>
       <div class="v">${escapeHtml(node.name || "")}</div>
@@ -190,6 +220,11 @@ function renderInfo(node) {
       <div class="k">Blender</div>
       <div class="v">${escapeHtml(blenderText)}</div>
       
+      <div class="k">Engine</div>
+      <div class="v">
+        ${b?.render_engine ? `<span class="badge" style="background:var(--accent2);color:#fff;margin-left:0;margin-right:8px;text-transform:uppercase;">${b.render_engine}</span>` : "—"}
+      </div>
+
       <div class="k">Created</div>
       <div class="v">${escapeHtml(node.meta?.created || "—")}</div>
       

@@ -265,6 +265,7 @@ dependencies = [
 name = "blender-file-finder"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "serde",
  "serde_json",

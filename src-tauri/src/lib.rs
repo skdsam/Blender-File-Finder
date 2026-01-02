@@ -22,6 +22,10 @@ pub struct BlendInfo {
     pub raw: Option<String>,
     pub pointer_size: Option<u8>,
     pub endianness: Option<String>,
+    pub thumbnail: Option<String>, // Base64 RGBA
+    pub thumb_width: Option<i32>,
+    pub thumb_height: Option<i32>,
+    pub render_engine: Option<String>,
     pub error: Option<String>,
 }
 
@@ -52,6 +56,8 @@ pub struct FlatFile {
     pub created: Option<String>,
     pub modified: Option<String>,
     pub blender_version: Option<String>,
+    pub thumbnail: Option<String>,
+    pub render_engine: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -117,6 +123,10 @@ fn parse_blend_header(path: &Path) -> BlendInfo {
                 raw: None,
                 pointer_size: None,
                 endianness: None,
+                thumbnail: None,
+                thumb_width: None,
+                thumb_height: None,
+                render_engine: None,
                 error: Some(e.to_string()),
             }
         }
@@ -129,6 +139,10 @@ fn parse_blend_header(path: &Path) -> BlendInfo {
             raw: None,
             pointer_size: None,
             endianness: None,
+            thumbnail: None,
+            thumb_width: None,
+            thumb_height: None,
+            render_engine: None,
             error: Some("Unable to read header".into()),
         };
     }
@@ -139,6 +153,10 @@ fn parse_blend_header(path: &Path) -> BlendInfo {
             raw: None,
             pointer_size: None,
             endianness: None,
+            thumbnail: None,
+            thumb_width: None,
+            thumb_height: None,
+            render_engine: None,
             error: Some("Not a blend file".into()),
         };
     }
@@ -163,13 +181,109 @@ fn parse_blend_header(path: &Path) -> BlendInfo {
         None
     };
 
-    BlendInfo {
+    let mut info = BlendInfo {
         version,
         raw: Some(raw),
         pointer_size,
         endianness,
+        thumbnail: None,
+        thumb_width: None,
+        thumb_height: None,
+        render_engine: None,
         error: None,
+    };
+
+    // Advanced parsing for thumbnail and metadata
+    if let Err(e) = parse_blocks(&mut info, &mut file, pointer_size) {
+        // Non-fatal error for advanced parsing
+        info.error = Some(format!("Header OK, but block scan failed: {}", e));
     }
+
+    info
+}
+
+fn parse_blocks(
+    info: &mut BlendInfo,
+    file: &mut File,
+    ptr_size: Option<u8>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use base64::prelude::*;
+    use std::io::{Read, Seek, SeekFrom};
+
+    let is_little = info.endianness.as_deref() != Some("big");
+    let ptr_size = ptr_size.unwrap_or(64) / 8;
+
+    // Header is 12 bytes
+    file.seek(SeekFrom::Start(12))?;
+
+    let header_len = 4 + 4 + ptr_size as usize + 4 + 4;
+    let mut header_buf = vec![0u8; header_len];
+
+    let mut searched_blocks = 0;
+    loop {
+        if file.read_exact(&mut header_buf).is_err() {
+            break;
+        }
+        searched_blocks += 1;
+
+        let id = String::from_utf8_lossy(&header_buf[0..4]);
+        let size = if is_little {
+            u32::from_le_bytes(header_buf[4..8].try_into()?)
+        } else {
+            u32::from_be_bytes(header_buf[4..8].try_into()?)
+        } as u64;
+
+        if id.starts_with("TEST") {
+            let mut thumb_header = [0u8; 8];
+            if file.read_exact(&mut thumb_header).is_ok() {
+                let (width, height) = if is_little {
+                    (
+                        i32::from_le_bytes(thumb_header[0..4].try_into()?),
+                        i32::from_le_bytes(thumb_header[4..8].try_into()?),
+                    )
+                } else {
+                    (
+                        i32::from_be_bytes(thumb_header[0..4].try_into()?),
+                        i32::from_be_bytes(thumb_header[4..8].try_into()?),
+                    )
+                };
+
+                let data_size = (width * height * 4) as usize;
+                if data_size > 0 && data_size < 1024 * 1024 * 10 {
+                    let mut rgba = vec![0u8; data_size];
+                    if file.read_exact(&mut rgba).is_ok() {
+                        info.thumbnail = Some(BASE64_STANDARD.encode(&rgba));
+                        info.thumb_width = Some(width);
+                        info.thumb_height = Some(height);
+                    }
+                }
+
+                // Ensure we skip the rest of the block if size was different
+                let read_so_far = 8 + data_size as u64;
+                if size > read_so_far {
+                    file.seek(SeekFrom::Current((size - read_so_far) as i64))?;
+                }
+            }
+        } else if id.starts_with("SC") {
+            let mut sc_data = vec![0u8; size as usize];
+            if file.read_exact(&mut sc_data).is_ok() {
+                let sc_str = String::from_utf8_lossy(&sc_data).to_uppercase();
+                if sc_str.contains("CYCLES") {
+                    info.render_engine = Some("Cycles".into());
+                } else if sc_str.contains("EEVEE") {
+                    info.render_engine = Some("Eevee".into());
+                } else if sc_str.contains("WORKBENCH") {
+                    info.render_engine = Some("Workbench".into());
+                }
+            }
+        } else if id.starts_with("DNA1") || id.starts_with("ENDB") || searched_blocks > 3000 {
+            break;
+        } else {
+            file.seek(SeekFrom::Current(size as i64))?;
+        }
+    }
+
+    Ok(())
 }
 
 // -----------------------------
@@ -342,6 +456,8 @@ fn start_scan(folder_path: String) -> Result<u64, String> {
                         created,
                         modified,
                         blender_version: blend.version.clone(),
+                        thumbnail: blend.thumbnail.clone(),
+                        render_engine: blend.render_engine.clone(),
                     });
 
                     // Tree insert (relative directories)
