@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Blend File Finder</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header class="topbar">
+    <div class="left">
+      <button id="btnPick" class="btn primary">Select Folder</button>
+      <div class="pill" id="folderPill">No folder selected</div>
+    </div>
+
+    <div class="right">
+      <div class="seg" role="group" aria-label="Theme">
+        <button id="themeDark" class="segBtn active" title="Dark">🌙</button>
+        <button id="themeLight" class="segBtn" title="Light">☀️</button>
+      </div>
+      <input id="search" class="search" type="text" placeholder="Search blend files… (name or path)"/>
+    </div>
+  </header>
+
+  <div class="progressWrap" id="progressWrap" style="display:none;">
+    <div class="progressHead">
+      <div class="progressText" id="progressText">Scanning…</div>
+      <div class="counts" id="counts">—</div>
+    </div>
+    <div class="progressTrack">
+      <div class="progressBar" id="progressBar"></div>
+    </div>
+    <div class="currentPath" id="currentPath"></div>
+  </div>
+
+  <main class="layout">
+    <section class="pane treePane">
+      <div class="paneHeader">
+        <div class="title">File Tree</div>
+      </div>
+      <div id="tree" class="tree"></div>
+    </section>
+
+    <section class="pane listPane">
+      <div class="paneHeader">
+        <div class="title">Search Results</div>
+        <div class="small" id="resultsCount">—</div>
+      </div>
+      <div id="results" class="results"></div>
+    </section>
+
+    <section class="pane infoPane">
+      <div class="paneHeader">
+        <div class="title">File Details</div>
+      </div>
+      <div id="info" class="info">
+        <div class="hint">Select a .blend file from the tree or search results to view details.</div>
+      </div>
+      <div class="infoActions">
+        <button id="btnReveal" class="btn" disabled>Show in Folder</button>
+        <button id="btnOpen" class="btn primary" disabled>Open File</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
